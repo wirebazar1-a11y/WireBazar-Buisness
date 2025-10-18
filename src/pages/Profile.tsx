@@ -1,28 +1,9 @@
-import { useMemo } from "react";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserAuth } from "@/context/UserAuthContext";
 
-const formatContact = (contact: string) => {
-  if (/^\S+@\S+\.\S+$/.test(contact)) {
-    return contact.toLowerCase();
-  }
-  const digits = contact.replace(/\D/g, "");
-  if (digits.length >= 10) {
-    const lastFour = digits.slice(-4);
-    return `•••• •••• ${lastFour}`;
-  }
-  return contact;
-};
-
 const Profile = () => {
   const { user, logout } = useUserAuth();
-
-  const formattedContact = useMemo(() => {
-    if (!user) return "";
-    return formatContact(user.contact);
-  }, [user]);
 
   if (!user) {
     return (
@@ -43,17 +24,21 @@ const Profile = () => {
         <Card className="border-border/60 shadow-lg">
           <CardHeader>
             <CardTitle className="text-3xl">My Profile</CardTitle>
-            <CardDescription>Manage your secure, OTP-based account.</CardDescription>
+            <CardDescription>Manage your account information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h2 className="text-sm font-medium text-muted-foreground">Verified Contact</h2>
-              <p className="mt-2 text-lg font-semibold">{formattedContact}</p>
+              <h2 className="text-sm font-medium text-muted-foreground">Email</h2>
+              <p className="mt-2 text-lg font-semibold">{user.email}</p>
+            </div>
+            <div>
+              <h2 className="text-sm font-medium text-muted-foreground">User ID</h2>
+              <p className="mt-2 text-sm font-mono">{user.id}</p>
             </div>
             <div>
               <h2 className="text-sm font-medium text-muted-foreground">Last Login</h2>
               <p className="mt-2 text-lg font-semibold">
-                {new Date(user.lastLoginAt).toLocaleString()}
+                {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Recently'}
               </p>
             </div>
             <Button variant="outline" onClick={logout} className="w-full">

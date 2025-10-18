@@ -8,28 +8,57 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, Search, ShoppingCart } from 'lucide-react';
 import { getProducts, brands, categories, type Product } from '@/lib/products-data';
 import { getCartItemCount } from '@/lib/cart-storage';
+import { getAllProducts } from '@/lib/db-services';
 
 const Products = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [cartCount, setCartCount] = useState(() => getCartItemCount());
+  const [cartCount, setCartCount] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadProducts();
+    loadCartCount();
 
     const handleProductsUpdate = () => {
       loadProducts();
     };
 
+    const handleCartUpdate = () => {
+      loadCartCount();
+    };
+
     window.addEventListener('products-updated', handleProductsUpdate);
-    return () => window.removeEventListener('products-updated', handleProductsUpdate);
+    window.addEventListener('cart-updated', handleCartUpdate);
+    return () => {
+      window.removeEventListener('products-updated', handleProductsUpdate);
+      window.removeEventListener('cart-updated', handleCartUpdate);
+    };
   }, []);
 
-  const loadProducts = () => {
-    setProducts(getProducts());
+  const loadProducts = async () => {
+    setIsLoading(true);
+    try {
+      const dbProducts = await getAllProducts();
+      if (dbProducts && dbProducts.length > 0) {
+        setProducts(dbProducts as Product[]);
+      } else {
+        setProducts(getProducts());
+      }
+    } catch (error) {
+      console.error('Error loading products:', error);
+      setProducts(getProducts());
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadCartCount = async () => {
+    const count = await getCartItemCount();
+    setCartCount(count);
   };
 
   const filteredProducts = useMemo(() => {
@@ -47,13 +76,17 @@ const Products = () => {
     });
   }, [products, searchQuery, selectedBrand, selectedCategory]);
 
-  useEffect(() => {
-    const handleCartUpdate = () => {
-      setCartCount(getCartItemCount());
-    };
-    window.addEventListener('cart-updated', handleCartUpdate);
-    return () => window.removeEventListener('cart-updated', handleCartUpdate);
-  }, []);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-accent/10 to-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <p className="text-muted-foreground">Loading products...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/10 to-background">

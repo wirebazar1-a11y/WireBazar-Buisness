@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,23 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { productsData, brands, categories, type Product } from '@/lib/products-data';
+import { brands, categories, type Product } from '@/lib/products-data';
+import { getAllProducts, saveProduct, deleteProduct } from '@/lib/db-services';
 import { toast } from 'sonner';
 import { Package, Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
-
-const PRODUCTS_STORAGE_KEY = 'wire_cable_products';
-
-const getStoredProducts = (): Product[] => {
-  if (typeof window === 'undefined') return productsData;
-  const stored = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-  return stored ? JSON.parse(stored) : productsData;
-};
-
-const saveProducts = (products: Product[]): void => {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
-  window.dispatchEvent(new Event('products-updated'));
-};
 
 type ProductFormState = {
   name: string;
@@ -200,8 +187,16 @@ export const ProductsManagement = () => {
     loadProducts();
   }, []);
 
-  const loadProducts = () => {
-    setProducts(getStoredProducts());
+  const loadProducts = async () => {
+    try {
+      const dbProducts = await getAllProducts();
+      if (dbProducts) {
+        setProducts(dbProducts as Product[]);
+      }
+    } catch (error) {
+      console.error('Error loading products:', error);
+      toast.error('Failed to load products');
+    }
   };
 
   const resetForm = () => {
@@ -220,36 +215,40 @@ export const ProductsManagement = () => {
     });
   };
 
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!formData.name || !formData.brand || !formData.category || !formData.basePrice) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    const newProduct: Product = {
-      id: `product_${Date.now()}`,
-      name: formData.name,
-      brand: formData.brand,
-      category: formData.category,
-      color: formData.color.split(',').map(c => c.trim()).filter(Boolean),
-      description: formData.description,
-      specifications: formData.specifications ? JSON.parse(formData.specifications) : {},
-      basePrice: parseFloat(formData.basePrice),
-      unitType: formData.unitType,
-      stockQuantity: parseInt(formData.stockQuantity) || 0,
-      imageUrl: formData.imageUrl || 'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg',
-      isActive: formData.isActive
-    };
+    try {
+      const productData = {
+        name: formData.name,
+        brand: formData.brand,
+        category: formData.category,
+        color: formData.color.split(',').map(c => c.trim()).filter(Boolean),
+        description: formData.description,
+        specifications: formData.specifications ? JSON.parse(formData.specifications) : {},
+        basePrice: parseFloat(formData.basePrice),
+        unitType: formData.unitType,
+        stockQuantity: parseInt(formData.stockQuantity) || 0,
+        imageUrl: formData.imageUrl || 'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg',
+        isActive: formData.isActive
+      };
 
-    const updatedProducts = [...products, newProduct];
-    saveProducts(updatedProducts);
-    setProducts(updatedProducts);
-    setIsAddDialogOpen(false);
-    resetForm();
-    toast.success('Product added successfully');
+      await saveProduct(productData);
+      await loadProducts();
+      setIsAddDialogOpen(false);
+      resetForm();
+      toast.success('Product added successfully');
+      window.dispatchEvent(new Event('products-updated'));
+    } catch (error) {
+      console.error('Error adding product:', error);
+      toast.error('Failed to add product');
+    }
   };
 
-  const handleEditProduct = () => {
+  const handleEditProduct = async () => {
     if (!editingProduct) return;
 
     if (!formData.name || !formData.brand || !formData.category || !formData.basePrice) {
@@ -257,28 +256,32 @@ export const ProductsManagement = () => {
       return;
     }
 
-    const updatedProduct: Product = {
-      ...editingProduct,
-      name: formData.name,
-      brand: formData.brand,
-      category: formData.category,
-      color: formData.color.split(',').map(c => c.trim()).filter(Boolean),
-      description: formData.description,
-      specifications: formData.specifications ? JSON.parse(formData.specifications) : {},
-      basePrice: parseFloat(formData.basePrice),
-      unitType: formData.unitType,
-      stockQuantity: parseInt(formData.stockQuantity) || 0,
-      imageUrl: formData.imageUrl || 'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg',
-      isActive: formData.isActive
-    };
+    try {
+      const productData = {
+        name: formData.name,
+        brand: formData.brand,
+        category: formData.category,
+        color: formData.color.split(',').map(c => c.trim()).filter(Boolean),
+        description: formData.description,
+        specifications: formData.specifications ? JSON.parse(formData.specifications) : {},
+        basePrice: parseFloat(formData.basePrice),
+        unitType: formData.unitType,
+        stockQuantity: parseInt(formData.stockQuantity) || 0,
+        imageUrl: formData.imageUrl || 'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg',
+        isActive: formData.isActive
+      };
 
-    const updatedProducts = products.map(p => p.id === editingProduct.id ? updatedProduct : p);
-    saveProducts(updatedProducts);
-    setProducts(updatedProducts);
-    setIsEditDialogOpen(false);
-    setEditingProduct(null);
-    resetForm();
-    toast.success('Product updated successfully');
+      await saveProduct({ ...productData, id: editingProduct.id });
+      await loadProducts();
+      setIsEditDialogOpen(false);
+      setEditingProduct(null);
+      resetForm();
+      toast.success('Product updated successfully');
+      window.dispatchEvent(new Event('products-updated'));
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast.error('Failed to update product');
+    }
   };
 
   const openEditDialog = (product: Product) => {
@@ -299,22 +302,33 @@ export const ProductsManagement = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleToggleStatus = (productId: string) => {
-    const updatedProducts = products.map(p =>
-      p.id === productId ? { ...p, isActive: !p.isActive } : p
-    );
-    saveProducts(updatedProducts);
-    setProducts(updatedProducts);
-    toast.success('Product status updated');
+  const handleToggleStatus = async (productId: string) => {
+    try {
+      const product = products.find(p => p.id === productId);
+      if (!product) return;
+
+      await saveProduct({ ...product, id: productId, isActive: !product.isActive });
+      await loadProducts();
+      toast.success('Product status updated');
+      window.dispatchEvent(new Event('products-updated'));
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      toast.error('Failed to update product status');
+    }
   };
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
-    const updatedProducts = products.filter(p => p.id !== productId);
-    saveProducts(updatedProducts);
-    setProducts(updatedProducts);
-    toast.success('Product deleted');
+    try {
+      await deleteProduct(productId);
+      await loadProducts();
+      toast.success('Product deleted');
+      window.dispatchEvent(new Event('products-updated'));
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast.error('Failed to delete product');
+    }
   };
 
   const stats = {

@@ -23,22 +23,23 @@ const Cart = () => {
     return () => window.removeEventListener('cart-updated', handleCartUpdate);
   }, []);
 
-  const loadCart = () => {
-    setCartItems(getCartItems());
+  const loadCart = async () => {
+    const items = await getCartItems();
+    setCartItems(items);
   };
 
-  const handleQuantityChange = (id: string, newQuantity: number) => {
+  const handleQuantityChange = async (id: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    updateCartItemQuantity(id, newQuantity);
+    await updateCartItemQuantity(id, newQuantity);
     toast.success('Cart updated');
   };
 
-  const handleRemove = (id: string) => {
-    removeFromCart(id);
+  const handleRemove = async (id: string) => {
+    await removeFromCart(id);
     toast.success('Item removed from cart');
   };
 
-  const subtotal = getCartTotal();
+  const subtotal = getCartTotal(cartItems);
   const estimatedShipping = subtotal >= 5000 ? 0 : 100;
   const total = subtotal + estimatedShipping;
 

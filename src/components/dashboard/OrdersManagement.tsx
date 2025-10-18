@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getAllOrdersForAdmin, updateOrderStatus, type Order } from '@/lib/order-storage';
-import { formatDistanceToNow, format } from 'date-fns';
+import { getAllOrders, exportOrdersToCSV, exportProductsToCSV, exportInquiriesToCSV } from '@/lib/db-services';
+import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
-import { Package } from 'lucide-react';
+import { Package, Download } from 'lucide-react';
 
 export const OrdersManagement = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -20,13 +21,50 @@ export const OrdersManagement = () => {
   const loadOrders = async () => {
     setIsLoading(true);
     try {
-      const allOrders = await getAllOrdersForAdmin();
-      setOrders(allOrders);
+      const dbOrders = await getAllOrders();
+      if (dbOrders && dbOrders.length > 0) {
+        const convertedOrders: Order[] = dbOrders.map((dbOrder: any) => ({
+          id: dbOrder.id,
+          orderNumber: dbOrder.order_number,
+          userId: dbOrder.user_id,
+          customerInfo: {
+            name: dbOrder.customer_name,
+            email: dbOrder.customer_email,
+            phone: dbOrder.customer_phone,
+            address: dbOrder.customer_address,
+            pincode: dbOrder.customer_pincode
+          },
+          items: dbOrder.items || [],
+          subtotal: dbOrder.subtotal,
+          shippingCost: dbOrder.shipping_cost || 0,
+          totalAmount: dbOrder.total_amount,
+          status: dbOrder.status,
+          paymentStatus: dbOrder.payment_status,
+          paymentMethod: dbOrder.payment_method,
+          qrCodeData: dbOrder.qr_code_data,
+          createdAt: dbOrder.created_at,
+          estimatedDelivery: dbOrder.estimated_delivery
+        }));
+        setOrders(convertedOrders);
+      } else {
+        const allOrders = await getAllOrdersForAdmin();
+        setOrders(allOrders);
+      }
     } catch (error) {
       console.error('Error loading orders:', error);
       toast.error('Failed to load orders');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleExportOrders = async () => {
+    try {
+      await exportOrdersToCSV();
+      toast.success('Orders exported successfully');
+    } catch (error) {
+      console.error('Error exporting orders:', error);
+      toast.error('Failed to export orders');
     }
   };
 
@@ -114,8 +152,16 @@ export const OrdersManagement = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
-          <CardDescription>Manage and track customer orders</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Recent Orders</CardTitle>
+              <CardDescription>Manage and track customer orders</CardDescription>
+            </div>
+            <Button onClick={handleExportOrders} variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              Export to Excel
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {orders.length === 0 ? (

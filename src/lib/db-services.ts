@@ -677,3 +677,36 @@ export const exportDataToCSV = (data: any[], filename: string) => {
   link.click();
   document.body.removeChild(link);
 };
+
+export const exportOrdersToCSV = async () => {
+  const orders = await getAllOrders();
+  if (orders && orders.length > 0) {
+    const flatOrders = orders.map((order: any) => ({
+      order_number: order.order_number,
+      customer_name: order.customer_name,
+      customer_email: order.customer_email,
+      customer_phone: order.customer_phone,
+      customer_address: order.customer_address,
+      customer_pincode: order.customer_pincode,
+      total_amount: order.total_amount,
+      status: order.status,
+      payment_status: order.payment_status,
+      created_at: order.created_at
+    }));
+    exportDataToCSV(flatOrders, 'orders');
+  }
+};
+
+export const exportProductsToCSV = async () => {
+  const products = await getAllProducts();
+  if (products && products.length > 0) {
+    exportDataToCSV(products, 'products');
+  }
+};
+
+export const exportInquiriesToCSV = async () => {
+  const inquiries = await getAllInquiries();
+  if (inquiries && inquiries.length > 0) {
+    exportDataToCSV(inquiries, 'inquiries');
+  }
+};

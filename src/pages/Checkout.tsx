@@ -15,8 +15,8 @@ import { useUserAuth } from '@/context/UserAuthContext';
 const Checkout = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useUserAuth();
-  const cartItems = getCartItems();
-  const subtotal = getCartTotal();
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [subtotal, setSubtotal] = useState(0);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,10 +27,19 @@ const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (cartItems.length === 0) {
+    const loadCart = async () => {
+      const items = await getCartItems();
+      setCartItems(items);
+      setSubtotal(getCartTotal(items));
+    };
+    loadCart();
+  }, []);
+
+  useEffect(() => {
+    if (cartItems.length === 0 && subtotal === 0) {
       navigate('/cart');
     }
-  }, [cartItems, navigate]);
+  }, [cartItems, subtotal, navigate]);
 
   useEffect(() => {
     if (!user) return;
@@ -140,8 +149,8 @@ const Checkout = () => {
         });
       }
 
-      setTimeout(() => {
-        clearCart();
+      setTimeout(async () => {
+        await clearCart();
         navigate(`/order-confirmation/${order.id}`);
       }, 2000);
     } catch (error) {
